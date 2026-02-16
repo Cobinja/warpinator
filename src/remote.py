@@ -92,7 +92,7 @@ class RemoteMachine(GObject.Object):
             func = self.remote_thread_v2
 
         self.remote_thread = threading.Thread(target=func, name="remote-main-thread-v%s-%s-%s:%d-%s"
-                                              % (self.api_version, self.hostname, self.ip_info.ip4_address, self.port, self.ident))
+                                              % (self.api_version, self.hostname, self.ip_info, self.port, self.ident))
         # logging.debug("remote-thread-%s-%s:%d-%s"
                           # % (self.hostname, self.ip_info.ip4_address, self.port, self.ident))
         self.remote_thread.start()
@@ -102,7 +102,7 @@ class RemoteMachine(GObject.Object):
 
         self.emit_machine_info_changed() # Let's make sure the button doesn't have junk in it if we fail to connect.
 
-        logging.debug("Remote: Attempting to connect to %s (%s) - api version 1" % (self.display_hostname, self.ip_info.ip4_address))
+        logging.debug("Remote: Attempting to connect to %s (%s) - api version 1" % (self.display_hostname, self.ip_info))
 
         self.set_remote_status(RemoteStatus.INIT_CONNECTING)
 
@@ -113,7 +113,9 @@ class RemoteMachine(GObject.Object):
             cert = auth.get_singleton().get_cached_cert(self.hostname, self.ip_info)
             creds = grpc.ssl_channel_credentials(cert)
 
-            with grpc.secure_channel("%s:%d" % (self.ip_info.ip4_address, self.port), creds) as channel:
+            remote_ip, _, ip_version = self.ip_info.get_usable_ip()
+            remote_ip = remote_ip if ip_version == socket.AF_INET else "[%s]" % (remote_ip,)
+            with grpc.secure_channel("%s:%d" % (remote_ip, self.port), creds) as channel:
                 future = grpc.channel_ready_future(channel)
 
                 try:
